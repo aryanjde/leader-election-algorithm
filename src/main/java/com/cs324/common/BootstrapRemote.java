@@ -8,7 +8,6 @@ import java.util.List;
 public interface BootstrapRemote extends Remote {
 
     // A worker registers and is returned one active peer to join, or null if it is first.
-    // A worker registers itself and is returned an existing active worker
     WorkerRemote registerWorker(int workerId, String rmiHost, int rmiPort) throws RemoteException;
 
     // Fired on clean shutdown, so the directory stops handing out dead workers.
@@ -21,6 +20,5 @@ public interface BootstrapRemote extends Remote {
     List<Integer> getActiveWorkerIds() throws RemoteException;
 
     // Address lookup so a joiner can reach the peer stub it was handed; null if unknown.
-    // Address lookup so a joining worker can connect to the peer stub
     com.cs324.common.WorkerAddress getWorkerAddress(int workerId) throws RemoteException;
 }

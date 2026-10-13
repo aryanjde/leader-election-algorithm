@@ -49,7 +49,6 @@ public final class WorkerTaskCalculator {
                 throw new IllegalArgumentException("MAX requires a list, not a prime range.");
             }
             // Negatives and 0/1 cannot be prime, so the scan starts at 2.
-            // Negative numbers and 0/1 cannot be prime; skip them without iterating.
             return IntStream.rangeClosed(Math.max(2, range.start()), range.end());
         }
         // int[], Integer[] and Collection payloads are all read as lists, duplicates kept.
@@ -84,7 +83,6 @@ public final class WorkerTaskCalculator {
             return value == 2;
         }
         // divisor <= value / divisor stops at the square root with no overflow.
-        // After checking even numbers, try odd divisors up to the square root.
         for (int divisor = 3; divisor <= value / divisor; divisor += 2) {
             if (value % divisor == 0) {
                 return false;

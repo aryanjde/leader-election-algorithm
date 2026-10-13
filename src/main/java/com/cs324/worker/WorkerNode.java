@@ -13,9 +13,6 @@ import java.util.Scanner;
 // Entry point for a Worker node: registers, joins a random peer, then serves elections and jobs.
 public class WorkerNode {
 
-    // Required by the assignment spec: worker nodes hold a "cs324" marker.
-    public static final String leaderman = "cs324";
-
     // Tag for a locally generated adoption id, in a range no election counter reaches.
     private static final long ADOPT_MESSAGE_TAG = 0x5AD0L;
 
@@ -107,7 +104,7 @@ public class WorkerNode {
         final WorkerRemoteImpl selfForHook = self;
         final WorkerRemoteImpl selfForStartup = self;
         if (selfForStartup != null) {
-            // The cluster elects itself: after a grace period, a worker with no coordinator votes.
+            // The cluster elects itself: after a grace period, a worker with no coordinator starts a wave.
             // The delay lets peers adopt the first leader, so startup costs one election, not N.
             Thread startupElection = new Thread(() -> {
                 try {
@@ -131,7 +128,6 @@ public class WorkerNode {
         Runtime.getRuntime().addShutdownHook(new Thread(() -> {
             try {
                 // Pool first: leaked pool threads are what stop a JVM from exiting.
-                // Stop the job thread pool first. If removed, pool threads leak and the JVM can hang on exit.
                 if (selfForHook != null) {
                     selfForHook.shutdown();
                 }

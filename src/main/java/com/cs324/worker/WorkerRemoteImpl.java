@@ -29,9 +29,6 @@ import java.util.concurrent.atomic.AtomicLong;
 
 public class WorkerRemoteImpl extends UnicastRemoteObject implements WorkerRemote {
 
-        // Declared per the assignment; not read anywhere in the implementation.
-    public static final String leaderman = "cs324";
-
     // One election wave, plus the bookkeeping needed to complete it.
     private static class ElectionState {
         // Neighbour that forwarded this wave, so results can be echoed back to it.
@@ -51,21 +48,14 @@ public class WorkerRemoteImpl extends UnicastRemoteObject implements WorkerRemot
         }
     }
 
-    // This worker's id, and the tie-break when two workers share a JAC.
+
     private final int id;
-    // JAC: work shed to other workers, excluding our own share. Decides elections.
     private final AtomicInteger jobAllocationCounter = new AtomicInteger(0);
-    // Unique per worker, so election message ids need no coordination.
     private final AtomicLong electionCounter = new AtomicLong(0);
-    // -1 when unknown; volatile so every thread sees the newest coordinator.
     private volatile int currentCoordinatorId = -1;
-    // Audit record of election message ids. Deliberately not the dedup guard.
     private final Set<Long> seenMessageIds = ConcurrentHashMap.newKeySet();
-    // Coordinator announcement ids, so a broadcast looping back is applied once.
     private final Set<Long> seenCoordinatorMessageIds = ConcurrentHashMap.newKeySet();
-    // Election waves still in flight, by message id.
     private final Map<Long, ElectionState> elections = new ConcurrentHashMap<>();
-    // Peer stubs, read while another thread may be adding a neighbour.
     private final Map<Integer, WorkerRemote> neighbours = new ConcurrentHashMap<>();
 
     // Composite key, so two workers' results for one job cannot overwrite each other.
@@ -141,7 +131,6 @@ public class WorkerRemoteImpl extends UnicastRemoteObject implements WorkerRemot
         return Set.copyOf(neighbours.keySet());
     }
 
-    // Lets a client see how much of the term budget is left.
     public int getJobsCoordinatedInTerm() {
         return termJobsCoordinated.get();
     }
@@ -151,7 +140,9 @@ public class WorkerRemoteImpl extends UnicastRemoteObject implements WorkerRemot
         return true;
     }
 
+    
     // Starts a new wave: we are the origin and begin as our own best candidate.
+    @Override
     public long startElection() {
         // Worker id in the high bits keeps message ids globally unique without a registry.
         long messageId = ((long) id << 32) | (electionCounter.getAndIncrement());
@@ -270,9 +261,8 @@ public class WorkerRemoteImpl extends UnicastRemoteObject implements WorkerRemot
         }
         this.currentCoordinatorId = coordinatorId;
         handoverInProgress.set(false);
-        if (coordinatorId == this.id) {
-            // Only a real new term resets the budget, never a relayed adoption.
-            termJobsCoordinated.set(0);
+        if (coordinatorId == this.id) {  
+           termJobsCoordinated.set(0);
         }
 
         List<Map.Entry<Integer, WorkerRemote>> snapshot = new ArrayList<>(neighbours.entrySet());
@@ -515,8 +505,16 @@ public class WorkerRemoteImpl extends UnicastRemoteObject implements WorkerRemot
                     // In the directory but unreachable: compute its slice here rather than stall.
                     final Object slice = chunk;
                     executor.submit(() -> {
+                        Object fallback;
                         try {
-                            reportTaskResult(jobId, targetId, WorkerTaskCalculator.calculate(typeSnapshot, slice));
+                            fallback = WorkerTaskCalculator.calculate(typeSnapshot, slice);
+                        } catch (Exception ex) {
+                            // Same contract as the assignTask fallback: a slice that cannot be
+                            // computed reports its error, or the job never completes.
+                            fallback = "Error executing task: " + ex.getMessage();
+                        }
+                        try {
+                            reportTaskResult(jobId, targetId, fallback);
                         } catch (RemoteException ignored) {
                         }
                     });

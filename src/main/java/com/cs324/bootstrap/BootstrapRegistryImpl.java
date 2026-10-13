@@ -44,14 +44,11 @@ public class BootstrapRegistryImpl extends UnicastRemoteObject implements Bootst
         // Copy workers before picking a peer, so the newcomer is never handed itself.
         List<Map.Entry<Integer, WorkerAddress>> snapshot = new ArrayList<>(activeWorkers.entrySet());
         // Shuffled per call, so joins are not biased towards the lowest worker id.
-        // Randomise the order so the peer is random.
         Collections.shuffle(snapshot, new Random());
 
         // The peer handed back; null means this worker is first in the cluster.
-        // The peer we will hand back (null = first worker).
         WorkerRemote peerStub = null;
         // Try candidates in turn, so one dead entry cannot block a join.
-        // Try each candidate until one answers.
         for (Map.Entry<Integer, WorkerAddress> candidate : snapshot) {
             try {
                 // Contact the candidate's registry.
@@ -72,7 +69,6 @@ public class BootstrapRegistryImpl extends UnicastRemoteObject implements Bootst
         // putIfAbsent makes duplicate-id detection atomic; containsKey+put lost updates.
         WorkerAddress prev = activeWorkers.putIfAbsent(workerId, new WorkerAddress(rmiHost, rmiPort));
         // Ids must be unique, so a collision is an error the caller must fix.
-        // ID was already taken: reject.
         if (prev != null) {
             throw new RemoteException("Duplicate worker id " + workerId + " - already registered");
         }

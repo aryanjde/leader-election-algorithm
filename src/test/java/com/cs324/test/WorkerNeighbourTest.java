@@ -20,7 +20,7 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 
 // Step 1 of the worker test plan: connectAsNeighbour().
 // The network only forms if connecting both resolves the peer through RMI and records it.
-// Resolution is assertable directly; recording has no getter, so it is proven indirectly.
+// getNeighbourIds() exposes the recorded set, so recording is assertable directly too.
 // Once connected, a relayed message has to actually arrive at the neighbour.
 class WorkerNeighbourTest {
 

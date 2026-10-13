@@ -33,7 +33,7 @@ To run the Bootstrap Node, the Workers and the Client, see [How to Run](#how-to-
 
 ## How to Run (any IDE or terminal)
 
-The project has no runtime dependencies (JUnit is `test`-scoped), so the runtime classpath is just `target/classes`. These commands behave the same in VS Code, Apache NetBeans, IntelliJ, Eclipse and a plain terminal. Every node is a separate process, so start each one in its own terminal.
+The project has no runtime dependencies (JUnit is `test`-scoped), so the runtime classpath is just `target/classes`. These commands behave the same in VS Code, IntelliJ, Eclipse and a plain terminal; Apache NetBeans needs extra setup for the worker, see [Apache NetBeans](#apache-netbeans). Every node is a separate process, so start each one in its own terminal.
 
 **All nodes run on the same machine** (`localhost`), one terminal each.
 
@@ -78,9 +78,22 @@ Every configuration names an explicit main class, so the IDE never has to guess 
 
 ### Apache NetBeans
 
-- **F6** (*Run Project*) and **Shift+F6** (*Run File*) work as they are - NetBeans resolves the main class itself and starts the program in a forked JVM.
-- Choose the main class under *Project Properties -> Run -> Main Class* (arguments and VM options live there too). NetBeans stores that in `nbactions.xml` in the project root - commit it so the whole team shares the same run setup.
+NetBeans has no `nbactions.xml` in this repository, so the two shortcuts are **not** equivalent to the other IDEs:
+
+- **Shift+F6** (*Run File*) infers the main class from the file you have open, and passes no arguments. That is fine for `BootstrapNode` and `ClientApp`, which both fall back to the correct defaults (`localhost 1099 1199`). It does **not** work for `WorkerNode`: it needs four arguments and prints its usage line then exits with status 1 when they are missing.
+- **F6** (*Run Project*) always runs the pom's default main class, `com.cs324.client.ClientApp`, with an empty `exec.args` - so it starts a client rather than whichever node you were editing.
+- To start a worker, set the arguments explicitly under *Project Properties -> Run*, or better create one run configuration per node via *Run -> Set Main Class -> Customize...*:
+
+  | Main class | Arguments |
+  | --- | --- |
+  | `com.cs324.bootstrap.BootstrapNode` | `1099` |
+  | `com.cs324.worker.WorkerNode` | `1 3500 localhost 1099` |
+  | `com.cs324.worker.WorkerNode` | `2 3501 localhost 1099` |
+  | `com.cs324.client.ClientApp` | `localhost 1099 1199` |
+
+  Use a different `rmiPort` and `workerId` for each extra worker, and a different callback port for a second client.
 - Register a **JDK 25 or newer** under *Tools -> Java Platforms*, because the pom targets `release 25`.
+- Once a run configuration is verified on one machine, NetBeans can export it to `nbactions.xml` in the project root so the whole team shares the same setup. This repository does not track one yet, so treat the table above as the source of truth.
 
 ### Command line with Maven (optional)
 
@@ -135,6 +148,12 @@ These are settled interpretations of ambiguous spec points. Keep implementations
 
 ---
 
+## Election Protocol
+
+See [docs/election.md](docs/election.md) for propagation, duplicate handling, winner rule, coordinator announcement, and 5-job term.
+
+---
+
 ## Packages
 
 - `common` - shared RMI interfaces + constants
@@ -148,6 +167,17 @@ The client now has rounded panels, blue buttons, icons, and a job-history table.
 It supports manual input, numeric CSV loading, input validation, and clearing
 input without removing the submitted-job history. `ClientApp.java` handles the
 interface and input; `ClientStyle.java` contains the styling helpers.
+`CsvInputLoader.java` holds the parsing, merging and rendering rules so they
+can be tested without starting a window.
+
+**Load CSVs** accepts one file or several at once. Several files are read in
+filename order, their values are concatenated into a single job, and the merged
+values are shown in the input area, wrapped 20 per line. The combined size of
+the selected files must stay at or below 1 MB. Parsing stays strict in every
+case: bare comma-separated integers only, so quoted fields, headers, empty rows
+and missing values are rejected, and the error names the file that caused it.
+Note that `PRIMESUM` still needs exactly two values in ascending order across
+the whole merged selection, so it is usually a single-file operation.
 
 The GUI validates and submits jobs to the current coordinator: it requests a
 cluster-wide job ID from the Bootstrap node, discovers the coordinator through
